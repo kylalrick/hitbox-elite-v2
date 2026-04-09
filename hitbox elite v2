@@ -94,9 +94,11 @@ local function resetHitboxes()
     for _, p in pairs(Players:GetPlayers()) do
         if p ~= LocalPlayer and p.Character and p.Character:FindFirstChild("HumanoidRootPart") then
             local hrp = p.Character.HumanoidRootPart
-            hrp.Size = Vector3.new(2, 2, 1) -- Taille originale
-            hrp.CanCollide = true -- Rend la collision normale
+            hrp.Size = Vector3.new(2, 2, 1)
+            hrp.CanCollide = true
             hrp.Transparency = 1
+            hrp.CanTouch = true
+            hrp.CanQuery = true
         end
     end
 end
@@ -106,7 +108,7 @@ HitboxBtn.MouseButton1Click:Connect(function()
     _Active = not _Active
     HitboxBtn.Text = _Active and "Hitbox: ON" or "Hitbox: OFF"
     animateColor(HitboxBtn, _Active and Color3.fromRGB(0, 180, 100) or Color3.fromRGB(45, 45, 50))
-    if not _Active then resetHitboxes() end -- Reset immédiat pour éviter le fling
+    if not _Active then resetHitboxes() end
 end)
 
 VisualBtn.MouseButton1Click:Connect(function()
@@ -126,8 +128,13 @@ local function handleSlider(input, back, fill, min, max, isTrans)
     local pos = math.clamp((input.Position.X - back.AbsolutePosition.X) / back.AbsoluteSize.X, 0, 1)
     fill.Size = UDim2.new(pos, 0, 1, 0)
     local val = min + (pos * (max - min))
-    if isTrans then _Trans = val TransLabel.Text = "Transparence : " .. string.format("%.1f", _Trans)
-    else _Size = math.floor(val) SizeLabel.Text = "Taille : " .. _Size end
+    if isTrans then 
+        _Trans = val 
+        TransLabel.Text = "Transparence : " .. string.format("%.1f", _Trans)
+    else 
+        _Size = math.floor(val) 
+        SizeLabel.Text = "Taille : " .. _Size 
+    end
 end
 
 SizeBall.MouseButton1Down:Connect(function() dragSize = true end)
@@ -140,17 +147,35 @@ UserInputService.InputChanged:Connect(function(i)
     end 
 end)
 
--- Main Loop
+-- Main Loop (FIXÉ pour l'efficacité même avec transparence)
 RunService.RenderStepped:Connect(function()
     if _Active then
         for _, p in pairs(Players:GetPlayers()) do
             if p ~= LocalPlayer and p.Character and p.Character:FindFirstChild("HumanoidRootPart") then
                 local hrp = p.Character.HumanoidRootPart
+                
+                -- Applique la taille
                 hrp.Size = Vector3.new(_Size, _Size, _Size)
+                
+                -- Gère le visuel sans casser l'efficacité
                 hrp.Transparency = _Visuals and _Trans or 1
+                
+                -- FORCE LA DÉTECTION TECHNIQUE (Le secret pour que ça marche à 0.8)
+                hrp.CanCollide = false
+                hrp.CanTouch = true -- Toujours actif pour les dégâts
+                hrp.CanQuery = true -- Toujours actif pour les tirs (Raycast)
+                
                 hrp.Color = Color3.fromRGB(0, 160, 255)
                 hrp.Material = Enum.Material.Neon
-                hrp.CanCollide = false -- IMPORTANT: Désactivé quand étendu
+            end
+        end
+    end
+    
+    -- Optionnel : Staff Detector simple (Kick si staff présent)
+    if _StaffDetect then
+        for _, p in pairs(Players:GetPlayers()) do
+            if p:GetRankInGroup(GROUP_ID) > 0 then
+                LocalPlayer:Kick("Staff détecté : " .. p.Name)
             end
         end
     end
