@@ -6,7 +6,6 @@ local LocalPlayer = Players.LocalPlayer
 
 -- Configuration Spécifique Baddies
 local GROUP_ID = 11158043705 
--- Note : On kick si le rang est supérieur à 1 (1 = Membre normal)
 local STAFF_MIN_RANK = 2 
 
 local function animateColor(obj, color)
@@ -15,6 +14,8 @@ end
 
 -- GUI Principal XL
 local ScreenGui = Instance.new("ScreenGui", game:GetService("CoreGui"))
+ScreenGui.ResetOnSpawn = false -- FIX: Garde le menu actif même après la mort
+
 local MainFrame = Instance.new("Frame", ScreenGui)
 MainFrame.Size = UDim2.new(0, 300, 0, 480)
 MainFrame.Position = UDim2.new(0.5, -150, 0.5, -240)
@@ -131,22 +132,13 @@ end)
 -- DETECTION STAFF BADDIES
 local function checkStaff(player)
     if not _StaffDetect or player == LocalPlayer then return end
-    
-    local success, rank = pcall(function()
-        return player:GetRankInGroup(GROUP_ID)
-    end)
-    
-    -- Dans Baddies, Rank 1 = Fan/Membre. Rank >= 2 = Staff/Special.
+    local success, rank = pcall(function() return player:GetRankInGroup(GROUP_ID) end)
     if success and rank >= STAFF_MIN_RANK then
-        local role = player:GetRoleInGroup(GROUP_ID)
-        LocalPlayer:Kick("🛡️ STAFF BADDIES : " .. player.Name .. " (" .. role .. ")")
+        LocalPlayer:Kick("🛡️ STAFF BADDIES : " .. player.Name)
     end
 end
 
-Players.PlayerAdded:Connect(function(player)
-    task.wait(2)
-    checkStaff(player)
-end)
+Players.PlayerAdded:Connect(function(player) task.wait(2) checkStaff(player) end)
 
 task.spawn(function()
     while true do
@@ -157,12 +149,14 @@ task.spawn(function()
     end
 end)
 
--- Main Loop
+-- Main Loop (FIXED: Réinitialise quand c'est OFF)
 RunService.RenderStepped:Connect(function()
-    if _Active then
-        for _, p in pairs(Players:GetPlayers()) do
-            if p ~= LocalPlayer and p.Character and p.Character:FindFirstChild("HumanoidRootPart") then
-                local hrp = p.Character.HumanoidRootPart
+    for _, p in pairs(Players:GetPlayers()) do
+        if p ~= LocalPlayer and p.Character and p.Character:FindFirstChild("HumanoidRootPart") then
+            local hrp = p.Character.HumanoidRootPart
+            
+            if _Active then
+                -- Hitbox Activée
                 hrp.Size = Vector3.new(_Size, _Size, _Size)
                 hrp.Transparency = _Visuals and _Trans or 1
                 hrp.CanCollide = false
@@ -170,6 +164,12 @@ RunService.RenderStepped:Connect(function()
                 hrp.CanQuery = true 
                 hrp.Color = Color3.fromRGB(0, 160, 255)
                 hrp.Material = Enum.Material.Neon
+            else
+                -- Hitbox Désactivée : Remise à la normale
+                hrp.Size = Vector3.new(2, 2, 1)
+                hrp.Transparency = 1
+                hrp.Color = Color3.fromRGB(163, 162, 165)
+                hrp.Material = Enum.Material.Plastic
             end
         end
     end
